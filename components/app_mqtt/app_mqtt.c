@@ -13,6 +13,7 @@
 
 #include "app_mqtt.h"
 #include "app_pipeline.h"
+#include "app_store_forward.h"
 
 static const char *TAG = "APP_MQTT";
 static esp_mqtt_client_handle_t client = NULL;
@@ -61,12 +62,6 @@ static void mqtt_publisher_task(void *arg)
         // Wait forever for a new message to arrive in the queue from RS485/RS232/LoRa
         if (xQueueReceive(g_telemetry_queue, &msg, portMAX_DELAY) == pdTRUE) {
             
-            if (!mqtt_connected) {
-                // If offline, you would normally write `msg` to the SD Card for Store-and-Forward here.
-                ESP_LOGW(TAG, "MQTT disconnected! Dropping message (Store-and-Forward not yet active).");
-                continue;
-            }
-
             // 1. Create a dynamic JSON object
             cJSON *json = cJSON_CreateObject();
             cJSON_AddNumberToObject(json, "timestamp", msg.timestamp);
@@ -106,12 +101,18 @@ static void mqtt_publisher_task(void *arg)
             // 3. Render JSON to a minimized string
             char *json_string = cJSON_PrintUnformatted(json);
             
-            // 4. Publish to the Cloud
-            int msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, json_string, 0, 1, 0);
-            if (msg_id != -1) {
-                ESP_LOGI(TAG, "Published Telemetry to Cloud: %s", json_string);
+            // 4. Publish to the Cloud or Store Offline
+            if (mqtt_connected) {
+                int msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, json_string, 0, 1, 0);
+                if (msg_id != -1) {
+                    ESP_LOGI(TAG, "Published Telemetry to Cloud: %s", json_string);
+                } else {
+                    ESP_LOGE(TAG, "Failed to publish telemetry. Storing offline.");
+                    app_store_forward_save(json_string);
+                }
             } else {
-                ESP_LOGE(TAG, "Failed to publish telemetry");
+                ESP_LOGW(TAG, "MQTT Offline! Routing to Store-and-Forward on SD Card.");
+                app_store_forward_save(json_string);
             }
 
             // 5. Cleanup memory instantly to avoid leaks
@@ -148,4 +149,15 @@ void app_mqtt_start(void)
         ESP_LOGI(TAG, "Starting MQTT connection...");
         esp_mqtt_client_start(client);
     }
+}
+
+bool app_mqtt_is_connected(void)
+{
+    return mqtt_connected;
+}
+
+int app_mqtt_publish(const char *json_string)
+{
+    if (!client || !mqtt_connected) return -1;
+    return esp_mqtt_client_publish(client, MQTT_TOPIC, json_string, 0, 1, 0);
 }
