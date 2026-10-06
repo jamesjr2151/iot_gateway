@@ -5,6 +5,7 @@
 #include "app_rs485.h"
 #include "app_rs232.h"
 #include "app_pipeline.h"
+#include "app_mqtt.h"
 
 static const char *TAG = "MAIN";
 
@@ -31,12 +32,20 @@ void app_main(void)
         app_config_load_and_apply();
     }
     
+    
     // Create the global telemetry queue before starting hardware tasks
     app_pipeline_init();
+    
+    // Initialize MQTT and start the JSON publisher task
+    ESP_LOGI(TAG, "Initializing MQTT...");
+    app_mqtt_init();
     
     ESP_LOGI(TAG, "Initializing RS485...");
     app_rs485_init();
     
     ESP_LOGI(TAG, "Initializing RS232...");
     app_rs232_init();
+    
+    // Start the MQTT client connection
+    app_mqtt_start();
 }
