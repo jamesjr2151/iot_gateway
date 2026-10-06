@@ -5,6 +5,7 @@
 #include "driver/uart.h"
 #include "esp_log.h"
 #include "app_pipeline.h"
+#include "app_rtc.h"
 #include "app_rs485.h"
 
 static const char *TAG = "APP_RS485";
@@ -29,7 +30,7 @@ static void rs485_task(void *arg)
             ESP_LOG_BUFFER_HEXDUMP(TAG, data, len, ESP_LOG_INFO);
             // Build the unified telemetry message
             telemetry_msg_t msg = {
-                .timestamp = 0, // TODO: Use gettimeofday() for real timestamp
+                .timestamp = app_rtc_get_timestamp_ms(),
                 .source_protocol = PROTO_RS485,
                 .device_id = 1, // TODO: Extract Modbus Slave ID from packet
             };

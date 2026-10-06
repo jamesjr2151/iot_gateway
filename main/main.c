@@ -6,6 +6,7 @@
 #include "app_rs232.h"
 #include "app_pipeline.h"
 #include "app_mqtt.h"
+#include "app_rtc.h"
 
 static const char *TAG = "MAIN";
 
@@ -39,6 +40,9 @@ void app_main(void)
     // Initialize MQTT and start the JSON publisher task
     ESP_LOGI(TAG, "Initializing MQTT...");
     app_mqtt_init();
+    
+    ESP_LOGI(TAG, "Initializing RTC (DS3231)...");
+    app_rtc_init();
     
     ESP_LOGI(TAG, "Initializing RS485...");
     app_rs485_init();

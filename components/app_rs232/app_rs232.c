@@ -5,6 +5,7 @@
 #include "driver/uart.h"
 #include "esp_log.h"
 #include "app_pipeline.h"
+#include "app_rtc.h"
 #include "app_rs232.h"
 
 static const char *TAG = "APP_RS232";
@@ -29,7 +30,7 @@ static void rs232_task(void *arg)
             ESP_LOG_BUFFER_HEXDUMP(TAG, data, len, ESP_LOG_INFO);
             // Build the unified telemetry message
             telemetry_msg_t msg = {
-                .timestamp = 0,
+                .timestamp = app_rtc_get_timestamp_ms(),
                 .source_protocol = PROTO_RS232,
                 .device_id = 2, // Arbitrary ID for RS232 device
             };
