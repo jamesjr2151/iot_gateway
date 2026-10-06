@@ -4,6 +4,7 @@
 #include "app_sdcard.h"
 #include "app_rs485.h"
 #include "app_rs232.h"
+#include "app_pipeline.h"
 
 static const char *TAG = "MAIN";
 
@@ -24,12 +25,18 @@ void app_main(void)
     // Future features will be initialized here:
     // app_i2c_expander_init();
     
+    ESP_LOGI(TAG, "Initializing SD Card...");
+    if (app_sdcard_init() == ESP_OK) {
+        // Only try to read the config if the SD card mounted successfully
+        app_config_load_and_apply();
+    }
+    
+    // Create the global telemetry queue before starting hardware tasks
+    app_pipeline_init();
+    
     ESP_LOGI(TAG, "Initializing RS485...");
     app_rs485_init();
     
     ESP_LOGI(TAG, "Initializing RS232...");
     app_rs232_init();
-    
-    ESP_LOGI(TAG, "Initializing SD Card...");
-    app_sdcard_init();
 }

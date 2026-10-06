@@ -4,6 +4,7 @@
 #include "freertos/task.h"
 #include "driver/uart.h"
 #include "esp_log.h"
+#include "app_pipeline.h"
 #include "app_rs232.h"
 
 static const char *TAG = "APP_RS232";
@@ -26,11 +27,25 @@ static void rs232_task(void *arg)
         if (len > 0) {
             ESP_LOGI(TAG, "Received %d bytes from RS232", len);
             ESP_LOG_BUFFER_HEXDUMP(TAG, data, len, ESP_LOG_INFO);
+            // Build the unified telemetry message
+            telemetry_msg_t msg = {
+                .timestamp = 0,
+                .source_protocol = PROTO_RS232,
+                .device_id = 2, // Arbitrary ID for RS232 device
+            };
             
-            /* 
-             * TODO: Unified Data Pipeline Integration
-             * Convert string/binary data to telemetry_msg_t and queue it.
-             */
+            // Push the raw bytes into the union's payload array.
+            msg.payload_length = (len > sizeof(msg.data.payload)) ? sizeof(msg.data.payload) : len;
+            memcpy(msg.data.payload, data, msg.payload_length);
+
+            // Push to the unified FreeRTOS queue
+            if (g_telemetry_queue != NULL) {
+                if (xQueueSend(g_telemetry_queue, &msg, pdMS_TO_TICKS(10)) == pdTRUE) {
+                    ESP_LOGI(TAG, "Pushed to Unified Pipeline -> [RS232]");
+                } else {
+                    ESP_LOGW(TAG, "Unified pipeline queue FULL! Dropping RS232 message.");
+                }
+            }
         }
         
         // Polling delay

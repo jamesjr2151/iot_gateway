@@ -4,6 +4,7 @@
 #include "freertos/task.h"
 #include "driver/uart.h"
 #include "esp_log.h"
+#include "app_pipeline.h"
 #include "app_rs485.h"
 
 static const char *TAG = "APP_RS485";
@@ -26,13 +27,26 @@ static void rs485_task(void *arg)
         if (len > 0) {
             ESP_LOGI(TAG, "Received %d bytes from RS485", len);
             ESP_LOG_BUFFER_HEXDUMP(TAG, data, len, ESP_LOG_INFO);
+            // Build the unified telemetry message
+            telemetry_msg_t msg = {
+                .timestamp = 0, // TODO: Use gettimeofday() for real timestamp
+                .source_protocol = PROTO_RS485,
+                .device_id = 1, // TODO: Extract Modbus Slave ID from packet
+            };
             
-            /* 
-             * TODO: Unified Data Pipeline Integration
-             * 1. Parse the Modbus/Raw data here.
-             * 2. Convert it into the `telemetry_msg_t` struct.
-             * 3. Push the struct into the FreeRTOS JSON/MQTT queue!
-             */
+            // For this PoC, we will just push the raw bytes into the union's payload array.
+            // If you parse a Modbus float, you would use: msg.data.numeric_value = parsed_float;
+            msg.payload_length = (len > sizeof(msg.data.payload)) ? sizeof(msg.data.payload) : len;
+            memcpy(msg.data.payload, data, msg.payload_length);
+
+            // Push to the unified FreeRTOS queue
+            if (g_telemetry_queue != NULL) {
+                if (xQueueSend(g_telemetry_queue, &msg, pdMS_TO_TICKS(10)) == pdTRUE) {
+                    ESP_LOGI(TAG, "Pushed to Unified Pipeline -> [RS485]");
+                } else {
+                    ESP_LOGW(TAG, "Unified pipeline queue FULL! Dropping RS485 message.");
+                }
+            }
         }
         
         // Polling delay
