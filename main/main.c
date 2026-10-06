@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "esp_log.h"
 #include "app_provisioning.h"
+#include "app_sdcard.h"
 
 static const char *TAG = "MAIN";
 
@@ -21,5 +22,7 @@ void app_main(void)
     // Future features will be initialized here:
     // app_i2c_expander_init();
     // app_rs485_init();
-    // app_sdcard_init();
+    
+    ESP_LOGI(TAG, "Initializing SD Card...");
+    app_sdcard_init();
 }
