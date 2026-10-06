@@ -1,0 +1,11 @@
+# ESP-IDF build artifacts
+build/
+sdkconfig.old
+*.bin
+*.elf
+*.map
+
+# IDE configurations
+.vscode/
+.clangd/
+.idea/
